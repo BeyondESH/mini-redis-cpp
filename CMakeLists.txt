@@ -14,6 +14,7 @@ add_executable(mini_redis
     src/main.cpp
     src/resp.cpp
     test/test_resp.cpp
+    src/server.cpp
 )
 
 target_include_directories(mini_redis PRIVATE ${PROJECT_SOURCE_DIR}/include)
