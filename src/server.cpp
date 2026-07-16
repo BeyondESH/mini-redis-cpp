@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "../include/mini_redis/server.h"
 #include <iostream>
 #include <netinet/in.h>
@@ -6,6 +8,10 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#include <vector>
+#include <cerrno>
+#include <netinet/tcp.h>
+#include <unordered_map>
 
 namespace mini_redis{
 
@@ -16,6 +22,11 @@ int add_epoll(int epfd,int fd,uint32_t events){
     ev.data.fd=fd;
     return epoll_ctl(epfd,EPOLL_CTL_ADD,fd,&ev);
 }
+
+Connection::Connection(std::vector<std::string> out_chunks,std::string in, int fd,size_t out_iov_idx,size_t out_offset,RespParser parser,bool is_replica):out_chunks(out_chunks),in(in),fd(fd),out_iov_idx(0),out_offset(out_offset),parser(parser),is_replica(is_replica){
+
+}
+    
 
 Connection::Connection():fd(-1),out_offset(0),out_iov_idx(0),is_replica(false){}
 
@@ -98,6 +109,44 @@ int Server::setupEpoll(){
     }
     return 0;
 }
+
+int Server::loop(){
+    std::unordered_map<int, Connection> connections;
+    std::vector<epoll_event> events(128); //存放 epoll 传回的活跃事件
+    while(true){
+        int n=epoll_wait(_epoll_fd,events.data(),events.size(),-1);
+        if(n<0){
+            if(errno==EINTR) continue;
+            std::perror("epoll wait failed");
+            return -1;
+        }
+        for(int i=0;i<n;++i){
+            //依次取出就绪的fd和事件
+            int fd=events[i].data.fd;
+            uint32_t event=events[i].events;
+            //处理listen_fd连接读事件
+            if(fd==_listen_fd){
+                while(true){
+                    sockaddr_in client_address{};
+                    socklen_t len=sizeof(client_address);
+                    int cfd=accept4(_listen_fd,reinterpret_cast<sockaddr *>(&client_address),&len,SOCK_NONBLOCK);
+                    if(cfd<0){
+                        std::perror("accept4 failed");
+                        break;
+                    }
+                    //关闭cfd的Nagle算法
+                    int open=1; //打开TCP_NODELAY
+                    setsockopt(cfd,IPPROTO_TCP,TCP_NODELAY,&open,sizeof(open));
+                    add_epoll(_epoll_fd,cfd,EPOLL_EVENTS::EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
+                    connections.emplace(cfd,Connection{std::vector<std::string>{},std::string(),cfd,0,0,RespParser{},false});
+                }
+                continue;
+            }
+            //处理timerfd
+            
+        }
+    }
+ }
 
 };
 

@@ -2,13 +2,14 @@
 
 #include "../include/mini_redis/resp.h"
 #include "../include/mini_redis/config.hpp"
-
 #include <vector>
 #include <string>
 
 namespace mini_redis{
 
 struct Connection{
+    Connection(std::vector<std::string> out_chunks,std::string in, int fd,size_t out_iov_idx,size_t out_offset,RespParser parser,bool is_replica);
+    Connection();
     std::vector<std::string> out_chunks; //发送队列
     std::string in; //接收客户端发来的原始字节流
     int fd; //socket
@@ -17,7 +18,7 @@ struct Connection{
     RespParser parser;
     bool is_replica; //标记当前连接的客户端是不是一个“从节点
 
-    Connection();
+    
 };
 
 class Server{
