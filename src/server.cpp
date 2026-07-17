@@ -124,6 +124,7 @@ int Server::loop(){
             //依次取出就绪的fd和事件
             int fd=events[i].data.fd;
             uint32_t event=events[i].events;
+
             //处理listen_fd连接读事件
             if(fd==_listen_fd){
                 while(true){
@@ -142,8 +143,47 @@ int Server::loop(){
                 }
                 continue;
             }
+
             //处理timerfd
+            if(fd==_timer_fd){
+                //et边缘触发只通知一次所以需要一次循环处理
+                while(true){
+                    uint64_t ticks;
+                    ssize_t len=read(_timer_fd,&ticks,sizeof(ticks));
+                    if(len<0){
+                        std::perror("read failed");
+                        break;
+                    }
+                    //read后定时器重置,没有超时
+                    if(len==0){
+                        break;
+                    }
+                }
+                //清理过期key
+
+                continue;
+            }
+
+            //处理会话socket读写
+            auto it=connections.find(fd);
+            if(it==connections.end()){
+                continue;    
+            }
+            Connection& connection=connections[fd];
             
+            //立即关闭错误和断开的fd
+            if((event & EPOLLHUP)||(event & EPOLLERR)){
+                //从红黑树中移除监听
+                epoll_ctl(_epoll_fd,EPOLL_CTL_DEL,fd,nullptr);
+                close(fd);
+                connections.erase(fd);
+                continue;
+            }
+            
+            //处理会话读事件
+            if(event&EPOLLIN){
+
+            }
         }
     }
  }
