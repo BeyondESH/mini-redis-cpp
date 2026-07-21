@@ -13,6 +13,7 @@ namespace mini_redis {
             return false;
         }
         out_line.assign(_buffer.data()+pos,end-pos);
+        //将pos向后移动到第一个不为\r\n的起始位置
         pos=end+2;
         return true;
     }

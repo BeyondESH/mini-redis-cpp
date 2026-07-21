@@ -1,3 +1,5 @@
+#include "mini_redis/resp.h"
+#include <sys/types.h>
 #define _GNU_SOURCE
 
 #include "../include/mini_redis/server.h"
@@ -14,6 +16,13 @@
 #include <unordered_map>
 
 namespace mini_redis{
+
+//向connection的发送队列中添加响应
+static inline void enqueue_chunks(Connection& connection, std::string str){
+    if(!str.empty()){
+        connection.out_chunks.emplace_back(std::move(str));
+    }      
+}
 
 //注册fd至epoll红黑树
 int add_epoll(int epfd,int fd,uint32_t events){
@@ -182,7 +191,44 @@ int Server::loop(){
             
             //处理会话读事件
             if(event&EPOLLIN){
+                char buffer[4096];
+                //循环完整读取
+                while(true){
+                    ssize_t len=read(fd,buffer,sizeof(buffer));
+                    if(len<0){
+                        if(errno==EAGAIN || errno==EWOULDBLOCK){
+                            break;
+                        }
+                        std::perror("read failed");
+                        //添加对端关闭事件
+                        event |= EPOLLRDHUP;
+                        break;
+                    }
+                    //读完后对端关闭
+                    if(len==0){
+                        event |= EPOLLRDHUP;
+                        break;
+                    }
+                    //将本次读取的数据添加到解析器中
+                    connection.parser.append(std::string_view(buffer,static_cast<size_t>(len)));
+                }
 
+                //开始解析
+                while(true){
+                    auto try_res=connection.parser.tryParseOneWithRaw();
+                    if(!try_res.has_value()){
+                        break;
+                    }
+                    const RespValue& value=try_res->first;
+                    const std::string &raw=try_res->second;
+                    //处理不同类型的请求
+                    if(value.type==RespType::NIL){
+                        enqueue_chunks(connection,respError("ERROR protocol error"));
+                    }else{
+                        //中断同步：标记为副本并以RESP批量形式发送RDB
+                        
+                    }
+                }
             }
         }
     }

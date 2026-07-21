@@ -10,7 +10,7 @@ namespace mini_redis{
 struct Connection{
     Connection(std::vector<std::string> out_chunks,std::string in, int fd,size_t out_iov_idx,size_t out_offset,RespParser parser,bool is_replica);
     Connection();
-    std::vector<std::string> out_chunks; //发送队列
+    std::vector<std::string> out_chunks; //发送队列,响应客户端请求
     std::string in; //接收客户端发来的原始字节流
     int fd; //socket
     size_t out_iov_idx; //当前发送到第几块

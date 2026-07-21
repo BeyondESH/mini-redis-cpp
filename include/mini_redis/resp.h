@@ -45,16 +45,16 @@ public:
 
 private:
     std::string _buffer;
-  // 解析单行数据（寻找 \r\n 并截取，pos 会被更新为下一行的起点，out_line 输出截取到的内容）
-  bool parseLine(size_t& pos, std::string& out_line);
-  // 解析整数（常用于解析数组长度或 Bulk String 的长度）
-  bool parseInteger(size_t& pos, int64_t& out_value);
-  // 解析 Bulk String ($ 开头的数据)
-  bool parseBulkString(size_t& pos, RespValue& out);
-  // 解析 Simple String (+ 开头), Error (- 开头) 或 Integer (: 开头) 
-  bool parseSimple(size_t& pos, RespType t, RespValue& out);
-  // 解析数组 (* 开头，内部会递归调用其他 parse 函数)
-  bool parseArray(size_t& pos, RespValue& out);
+    // 解析单行数据（寻找 \r\n 并截取，pos 会被更新为下一行的起点，out_line 输出截取到的内容）
+    bool parseLine(size_t& pos, std::string& out_line);
+    // 解析整数（常用于解析数组长度或 Bulk String 的长度）
+    bool parseInteger(size_t& pos, int64_t& out_value);
+    // 解析 Bulk String ($ 开头的数据)
+    bool parseBulkString(size_t& pos, RespValue& out);
+    // 解析 Simple String (+ 开头), Error (- 开头) 或 Integer (: 开头) 
+    bool parseSimple(size_t& pos, RespType t, RespValue& out);
+    // 解析数组 (* 开头，内部会递归调用其他 parse 函数)
+    bool parseArray(size_t& pos, RespValue& out);
 };
 
 //将string序列化为resp格式string
